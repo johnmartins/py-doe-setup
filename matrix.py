@@ -14,7 +14,6 @@ def create_parameter_matrix(parameters):
     """
     # calculate dimension
     num_runs = 1
-    num_params = len(parameters)
 
     for parameter in parameters:
         num_runs *= len(parameter)
