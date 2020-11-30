@@ -75,7 +75,7 @@ def run_experiments(experiment_method, parameters, experiment_name='Unnamed expe
             new_exp_str = "EXPERIMENT {}/{}".format(i + 1, len(parameter_matrix))
             print(new_exp_str)
 
-        result = experiment_method(parameter_set)
+        result = experiment_method(parameter_set, i+1)
 
         results_array.append(result)
 
