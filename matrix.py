@@ -1,7 +1,10 @@
 from copy import copy
+import numpy.random as np_random
+
+from methods import ExperimentType
 
 
-def create_parameter_matrix(parameters):
+def create_factorial_matrix(parameters):
     """
     Creates a DOE matrix with all possible combinations of the parameters used with this method.
 
@@ -50,7 +53,58 @@ def create_parameter_matrix(parameters):
     return parameter_matrix_converted
 
 
-def run_experiments(experiment_method, parameters, experiment_name='Unnamed experiment', print_to_stdout=False, ):
+def create_latin_hypercube(parameters, stratifications=10, samples=5):
+    dims = len(parameters)
+    parameter_matrix = []
+
+    dim_strats = []
+
+    for parameter in parameters:
+        if len(parameter) != 2:
+            raise TypeError('Parameters needs to come in pairs of 2 when using the latin hypercube method')
+
+        lim_upper = parameter[1]
+        lim_lower = parameter[0]
+        if parameter[0] > parameter[1]:
+            lim_upper = parameter[0]
+            lim_lower = parameter[1]
+
+        dim_range = lim_upper - lim_lower
+        strat_range = dim_range/stratifications
+
+        strats = []
+        for i in range (0, stratifications):
+            strats.append([lim_lower + strat_range * i, lim_lower + strat_range * (i + 1)])
+
+        # At this point we have the array "strats", which contains the upper limit of each stratification.
+        # The first one being equal to lim_lower + strat_range, and the last one being equal to lim_upper.
+        # Thus, we can check if a value is greater than an element in the strats array to determine in which
+        # stratification that value belongs. Slow, but functional.
+        dim_strats.append(strats)
+
+        sample_array = []
+        while len(strats) != 0 and len(sample_array) != samples:
+            print("sample array len: " + str(len(sample_array)) + ". Max samples: "+str(samples))
+            mean = (lim_upper + lim_lower) / 2
+            std = (mean - lim_lower) / 2
+            random_number = np_random.normal(mean, std, 1)
+
+            for i in range(0, len(strats)):
+                value = random_number[0]
+                if strats[i][0] < value < strats[i][1]:
+                    sample_array.append(value)
+                    strats.pop(i)   # Remove dat strat to prevent it from being used again
+                    break
+
+        print(sample_array)
+
+        # Now we have all the values. Randomly put them together (or just put them together as they are already random)
+
+    return parameter_matrix
+
+
+def run_experiments(experiment_method, parameters, experiment_name='Unnamed experiment', print_to_stdout=False,
+                    method=ExperimentType.FACTORIAL, stratifications=10, samples=5):
     """
     Automatically sets up a DOE, and runs the experiment_method function. The experiment_method function needs to
     have one argument that is an array which contains the specific experiment parameters. If the method returns a value
@@ -61,12 +115,25 @@ def run_experiments(experiment_method, parameters, experiment_name='Unnamed expe
     :param parameters: An array of parameters which that experiment uses
     :param experiment_name: Whatever you want to call the experiment (optional)
     :param print_to_stdout: If set to True it may be easier to monitor the progress
+    :param method: instance of method.ExperimentType
+    :param stratifications: Is only used for Latin Hypercubes. Amount of stratifications per dimension.
+    :param samples: If only used for Latin Hypercubes. Amount of samples. Cant be more than the amount of stratifications
     :return: Array of results
     """
+    if isinstance(method, ExperimentType) is False:
+        raise TypeError('Invalid method. Needs to be of ExperimentType')
+
     if print_to_stdout:
         print("New experiment: " + experiment_name)
 
-    parameter_matrix = create_parameter_matrix(parameters)
+    if method == ExperimentType.FACTORIAL:
+        parameter_matrix = create_factorial_matrix(parameters)
+    elif method == ExperimentType.LATIN_HYPERCUBE:
+        parameter_matrix = create_latin_hypercube(parameters, stratifications=stratifications, samples=samples)
+        print('Latin hypercube! Very cool!')
+        return
+    else:
+        raise Exception('This should not be possible (TM)')
     results_array = []
 
     i = 0
