@@ -1,5 +1,5 @@
 from copy import copy
-import numpy.random as np_random
+import numpy as np
 
 from methods import ExperimentType
 
@@ -53,11 +53,8 @@ def create_factorial_matrix(parameters):
     return parameter_matrix_converted
 
 
-def create_latin_hypercube(parameters, stratifications=10, samples=None):
+def create_latin_hypercube(parameters, stratifications=10):
     parameter_matrix = []
-
-    if samples is None:
-        samples = stratifications
 
     for parameter in parameters:
         if len(parameter) != 2:
@@ -77,39 +74,29 @@ def create_latin_hypercube(parameters, stratifications=10, samples=None):
             strats.append([lim_lower + strat_range * i, lim_lower + strat_range * (i + 1)])
 
         # At this point we have the array "strats", which contains the upper limit of each stratification.
-        # The first one being equal to lim_lower + strat_range, and the last one being equal to lim_upper.
-        # Thus, we can check if a value is greater than an element in the strats array to determine in which
-        # stratification that value belongs. Slow, but functional.
+        # Now all we need to do is to loop through the strats and provide a sample point in each of them
+        # using normal distribution
 
-        sample_array = []
+        # Shuffle the stratums
+        np.random.shuffle(strats)
+
         parameter_index = 0
-        while True:
+        while len(strats) != 0:
 
             if len(parameter_matrix) < parameter_index + 1:
                 parameter_matrix.append([])
 
-            mean = (lim_upper + lim_lower) / 2
-            std = (mean - lim_lower) / 2
-            random_number = np_random.normal(mean, std, 1)
-
-            for i in range(0, len(strats)):
-                value = random_number[0]
-                if strats[i][0] < value < strats[i][1]:
-                    sample_array.append(value)  # The sample_array doesnt really do anything
-                    strats.pop(i)   # Remove dat strat to prevent it from being used again
-
-                    parameter_matrix[parameter_index].append(value)
-                    parameter_index += 1
-                    break
-
-            if len(strats) == 0 or len(sample_array) == samples:
-                break
+            strat = strats.pop()
+            # Generate a random number within the stratum
+            value = strat[0] + np.random.rand() * (strat[1] - strat[0])
+            parameter_matrix[parameter_index].append(value)
+            parameter_index += 1
 
     return parameter_matrix
 
 
 def run_experiments(experiment_method, parameters, experiment_name='Unnamed experiment', print_to_stdout=False,
-                    method=ExperimentType.FACTORIAL, stratifications=10, samples=None):
+                    method=ExperimentType.FACTORIAL, stratifications=10):
     """
     Automatically sets up a DOE, and runs the experiment_method function. The experiment_method function needs to
     have one argument that is an array which contains the specific experiment parameters. If the method returns a value
@@ -134,7 +121,7 @@ def run_experiments(experiment_method, parameters, experiment_name='Unnamed expe
     if method == ExperimentType.FACTORIAL:
         parameter_matrix = create_factorial_matrix(parameters)
     elif method == ExperimentType.LATIN_HYPERCUBE:
-        parameter_matrix = create_latin_hypercube(parameters, stratifications=stratifications, samples=samples)
+        parameter_matrix = create_latin_hypercube(parameters, stratifications=stratifications)
     else:
         raise Exception('This should not be possible (TM)')
     results_array = []
